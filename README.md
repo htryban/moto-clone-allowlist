@@ -7,8 +7,8 @@ Stock Motorola firmware only lets you clone a few messaging apps in
 (`pm install-existing --user 10 <pkg>`), the clone runs but the Moto launcher hides its icon.
 This module fixes both:
 
-- **Settings → Cloned apps** lists every app that has a launcher icon, each with a **+** button.
-- The **Moto launcher** shows clone-badged icons for any app in the clone profile, so you can put them on the home screen.
+- **Settings → Cloned apps** lists every user-installed app that has a launcher icon, each with a **+** button.
+- The **Moto launcher** shows clone-badged icons for those apps in the clone profile, so you can put them on the home screen.
 
 No adb is needed after setup.
 
@@ -24,13 +24,27 @@ Two apps read that array with `Resources.getStringArray()`:
 | Moto launcher (`com.motorola.launcher3`) | `Utilities.getSupportedCloneApps()`: which clone-profile apps get an icon |
 
 `system_server` never reads it. The module hooks `Resources.getStringArray()` in **only those two processes**. When the
-`cloneable_apps` array is requested, it appends every launchable package to Moto's original list. The resource
+`cloneable_apps` array is requested, it appends every launchable, user-installed (non-system) package to Moto's
+original list. Preinstalled system apps are skipped on purpose. Android copies many of them (Camera, Moto, Google
+apps...) into every clone profile automatically. Listing them would make them appear in the launcher as clones that
+Settings can't remove. The resource
 ID is looked up by name at runtime, and the result is cached for 15 seconds so new installs appear quickly.
 
 Because it never runs in `system_server`, a failure can't crash the system or trip Zygisk's crash protection.
 If anything goes wrong, Settings and the launcher fall back to Moto's original list.
 
 Clones go into Moto's single clone profile (user 10), so you get **one clone per app**, the same as the stock feature.
+
+The Moto launcher always shows a cloned **Play Store** once the clone profile exists. That's stock behavior
+(`LoaderTask.loadAllApps` special-cases it), and cloned apps need it for purchases and updates.
+
+### Cleaning up unwanted clones
+
+If system apps ended up in the clone profile (e.g. from an older version or from adb experiments), remove them per user:
+
+```bash
+adb shell pm uninstall --user 10 com.motorola.camera5   # reversible: pm install-existing --user 10 <pkg>
+```
 
 ## Requirements
 
