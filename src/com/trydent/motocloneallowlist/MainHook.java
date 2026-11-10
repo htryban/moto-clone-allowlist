@@ -1,4 +1,4 @@
-package dev.local.cloneallowlist;
+package com.trydent.motocloneallowlist;
 
 import android.content.Context;
 import android.content.Intent;
