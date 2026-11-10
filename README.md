@@ -55,9 +55,9 @@ Tested on a Motorola Razr Fold 2026 (XT2651-1, Android 16), KernelSU-Next 3.4.2,
 
 ## Install
 
-1. Download `clone-allowlist.apk` from [Releases](../../releases) and install it.
-   Use `adb install --user 0 clone-allowlist.apk` so it isn't copied into clone or work profiles.
-2. In your Xposed manager, enable **Clone Allowlist**. The scope is preset to **Settings** and **Launcher3QuickStep**
+1. Download `moto-cloner-allowlist.apk` from [Releases](../../releases) and install it.
+   Use `adb install --user 0 moto-cloner-allowlist.apk` so it isn't copied into clone or work profiles.
+2. In your Xposed manager, enable **Moto Cloner Allowlist**. The scope is preset to **Settings** and **Launcher3QuickStep**
    (`com.android.settings`, `com.motorola.launcher3`).
 3. Force-stop Settings and the launcher, or just reboot.
 4. Open **Settings → Apps → Cloned apps** and tap **+** next to any app.

@@ -4,5 +4,5 @@
         <item>com.android.settings</item>
         <item>com.motorola.launcher3</item>
     </string-array>
-    <string name="app_name">Clone Allowlist</string>
+    <string name="app_name">Moto Cloner Allowlist</string>
 </resources>

@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Builds clone-allowlist.apk without Gradle, using the Android SDK's build-tools.
+# Builds moto-cloner-allowlist.apk without Gradle, using the Android SDK's build-tools.
 set -euo pipefail
 cd "${0:A:h}"
 
@@ -31,9 +31,9 @@ javac --release 17 -cp "$JAR:$OUT/stubs" -d "$OUT/classes" $(find src -name '*.j
 "$BT/zipalign" -f -p 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 if [[ ! -f signing.keystore ]]; then
   keytool -genkeypair -keystore signing.keystore -storepass cloneallowlist -keypass cloneallowlist \
-    -alias module -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Clone Allowlist" >/dev/null
+    -alias module -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Moto Cloner Allowlist" >/dev/null
 fi
 "$BT/apksigner" sign --ks signing.keystore --ks-pass pass:cloneallowlist --ks-key-alias module \
-  --out clone-allowlist.apk "$OUT/aligned.apk"
-"$BT/apksigner" verify clone-allowlist.apk
-echo "Built: $(pwd)/clone-allowlist.apk"
+  --out moto-cloner-allowlist.apk "$OUT/aligned.apk"
+"$BT/apksigner" verify moto-cloner-allowlist.apk
+echo "Built: $(pwd)/moto-cloner-allowlist.apk"
