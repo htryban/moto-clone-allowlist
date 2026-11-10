@@ -4,3 +4,4 @@ build/
 *.jks
 .DS_Store
 *.idsig
+libs/

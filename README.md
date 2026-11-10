@@ -49,9 +49,12 @@ adb shell pm uninstall --user 10 com.motorola.camera5   # reversible: pm install
 ## Requirements
 
 - A Motorola device with the stock "Cloned apps" feature, on Android 14 or newer
-- Root, with Zygisk (e.g. KernelSU-Next + Zygisk Next) and an Xposed framework (Vector / LSPosed, legacy API 82+)
+- Root, with Zygisk (e.g. KernelSU-Next + Zygisk Next) and an Xposed framework that supports the modern
+  **libxposed API 101+** (LSPosed 2.x, Vector 2.1+). Frameworks that only support the legacy API (Vector 2.0, LSPosed 1.9.x)
+  need the 1.x releases.
 
-Tested on a Motorola Razr Fold 2026 (XT2651-1, Android 16), KernelSU-Next 3.4.2, Zygisk Next 1.5.3 and Vector 2.0 (3021).
+Tested on a Motorola Razr Fold 2026 (XT2651-1, Android 16), KernelSU-Next 3.4.2, Zygisk Next 1.5.3 and LSPosed 2.2.1 (7912, API 102).
+Version 1.x (legacy API) was also tested on Vector 2.0 (3021).
 
 ## Install
 
@@ -59,7 +62,7 @@ Tested on a Motorola Razr Fold 2026 (XT2651-1, Android 16), KernelSU-Next 3.4.2,
    Use `adb install --user 0 moto-cloner-allowlist.apk` so it isn't copied into clone or work profiles.
 2. In your Xposed manager, enable **Moto Cloner Allowlist**. The scope is preset to **Settings** and **Launcher3QuickStep**
    (`com.android.settings`, `com.motorola.launcher3`).
-3. Force-stop Settings and the launcher, or just reboot.
+3. Force-stop Settings and the launcher, or just reboot. Later updates hot-reload on install (API 102), so no restart is needed.
 4. Open **Settings → Apps → Cloned apps** and tap **+** next to any app.
 
 ## Build
@@ -70,8 +73,8 @@ No Gradle. You need a JDK (17+) and the Android SDK with `platforms/android-36` 
 ./build.sh
 ```
 
-The script compiles against minimal Xposed API stubs in `stubs/` (compile-time only; the framework provides the real
-classes), dexes with `d8`, links with `aapt2`, then aligns and signs. The first build creates `signing.keystore`.
+The script downloads the [libxposed API](https://github.com/libxposed/api) AAR from Maven Central into `libs/`
+(pinned by SHA-256, compile-time only; the framework provides the real classes), dexes with `d8`, links with `aapt2`, adds the module metadata from `resources/META-INF/xposed/`, then aligns and signs. The first build creates `signing.keystore`.
 Keep it so later builds install as updates. It is git-ignored.
 
 ## Note: AppClone-style "raise user limit" modules on Motorola

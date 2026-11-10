@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Moto Cloner Allowlist</string>
+    <string name="app_description">Lets Moto\'s built-in app cloner (Settings &gt; Cloned apps) and launcher accept any launchable app.</string>
+</resources>

@@ -7,19 +7,17 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.os.SystemClock;
+import android.util.Log;
 
+import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import de.robv.android.xposed.IXposedHookLoadPackage;
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import io.github.libxposed.api.XposedModule;
 
 /**
- * Widens Motorola's built-in app cloner allowlist.
+ * Widens Motorola's built-in app cloner allowlist (libxposed API 101+).
  *
  * Moto ships a static overlay that sets android:array/cloneable_apps to 8 messengers.
  * Settings > Cloned apps uses that array to decide what can be cloned, and the Moto
@@ -27,8 +25,9 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
  * user-installed launchable app to that array, in only those two processes (system_server is
  * never touched).
  */
-public class MainHook implements IXposedHookLoadPackage {
-    private static final String TAG = "CloneAllowlist: ";
+public class MainHook extends XposedModule {
+    private static final String TAG = "CloneAllowlist";
+    private static final String HOOK_ID = "cloneable_apps";
     private static final long CACHE_MS = 15_000;
 
     private static int sCloneableId = 0;
@@ -36,45 +35,83 @@ public class MainHook implements IXposedHookLoadPackage {
     private static long sCacheTime;
     private static final ThreadLocal<Boolean> sBusy = new ThreadLocal<>();
 
-    @Override
-    public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
-        if (!"com.android.settings".equals(lpparam.packageName)
-                && !"com.motorola.launcher3".equals(lpparam.packageName)) {
-            return;
-        }
-        if (!lpparam.processName.equals(lpparam.packageName)) return;
-
-        sCloneableId = Resources.getSystem().getIdentifier("cloneable_apps", "array", "android");
-        if (sCloneableId == 0) {
-            XposedBridge.log(TAG + "android:array/cloneable_apps not found, not hooking");
-            return;
-        }
-
-        XposedHelpers.findAndHookMethod(Resources.class, "getStringArray", int.class, new XC_MethodHook() {
-            @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                if ((int) param.args[0] != sCloneableId || param.getThrowable() != null) return;
-                if (Boolean.TRUE.equals(sBusy.get())) return;
-                sBusy.set(true);
-                try {
-                    String[] merged = widen((String[]) param.getResult());
-                    if (merged != null) param.setResult(merged);
-                } catch (Throwable t) {
-                    XposedBridge.log(TAG + "widen failed: " + t);
-                } finally {
-                    sBusy.set(false);
-                }
-            }
-        });
-        XposedBridge.log(TAG + "hooked " + lpparam.packageName + " (id 0x" + Integer.toHexString(sCloneableId) + ")");
+    private static boolean isTargetProcess(String process) {
+        return "com.android.settings".equals(process) || "com.motorola.launcher3".equals(process);
     }
 
-    private static String[] widen(String[] original) {
+    @Override
+    public void onModuleLoaded(ModuleLoadedParam param) {
+        if (!isTargetProcess(param.getProcessName())) {
+            detach();
+            return;
+        }
+        Method target = resolveTarget(param.getProcessName());
+        if (target == null) return;
+        hook(target).setId(HOOK_ID).intercept(this::intercept);
+        log(Log.INFO, TAG, "hooked " + param.getProcessName() + " (id 0x" + Integer.toHexString(sCloneableId) + ")");
+    }
+
+    // A new APK generation can take over without restarting Settings or the launcher.
+    @Override
+    public boolean onHotReloading(HotReloadingParam param) {
+        return true; // no threads, receivers or native state to tear down
+    }
+
+    @Override
+    public void onHotReloaded(HotReloadedParam param) {
+        if (!isTargetProcess(param.getProcessName())) return;
+        boolean replaced = false;
+        for (HookHandle old : param.getOldHookHandles()) {
+            if (!replaced && HOOK_ID.equals(old.getId())) {
+                resolveTarget(param.getProcessName()); // refresh sCloneableId in this generation
+                old.replaceHook(this::intercept);
+                replaced = true;
+            } else {
+                old.unhook();
+            }
+        }
+        if (!replaced) {
+            Method target = resolveTarget(param.getProcessName());
+            if (target != null) hook(target).setId(HOOK_ID).intercept(this::intercept);
+        }
+        log(Log.INFO, TAG, "hot reloaded in " + param.getProcessName());
+    }
+
+    private Method resolveTarget(String process) {
+        sCloneableId = Resources.getSystem().getIdentifier("cloneable_apps", "array", "android");
+        if (sCloneableId == 0) {
+            log(Log.WARN, TAG, "android:array/cloneable_apps not found in " + process + ", not hooking");
+            return null;
+        }
+        try {
+            return Resources.class.getDeclaredMethod("getStringArray", int.class);
+        } catch (NoSuchMethodException e) {
+            log(Log.ERROR, TAG, "Resources.getStringArray(int) not found", e);
+            return null;
+        }
+    }
+
+    private Object intercept(Chain chain) throws Throwable {
+        Object result = chain.proceed();
+        if ((int) chain.getArg(0) != sCloneableId || Boolean.TRUE.equals(sBusy.get())) return result;
+        sBusy.set(true);
+        try {
+            String[] merged = widen((String[]) result);
+            return merged != null ? merged : result;
+        } catch (Throwable t) {
+            log(Log.ERROR, TAG, "widen failed", t);
+            return result;
+        } finally {
+            sBusy.set(false);
+        }
+    }
+
+    private static String[] widen(String[] original) throws ReflectiveOperationException {
         long now = SystemClock.elapsedRealtime();
         if (sCache != null && now - sCacheTime < CACHE_MS) return sCache;
 
-        Context ctx = (Context) XposedHelpers.callStaticMethod(
-                XposedHelpers.findClass("android.app.ActivityThread", null), "currentApplication");
+        Context ctx = (Context) Class.forName("android.app.ActivityThread")
+                .getMethod("currentApplication").invoke(null);
         if (ctx == null) return null;
 
         Set<String> pkgs = new LinkedHashSet<>();

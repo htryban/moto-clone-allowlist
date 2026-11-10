@@ -1,12 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.trydent.motocloneallowlist" android:versionCode="4" android:versionName="1.1.0">
+    package="com.trydent.motocloneallowlist" android:versionCode="5" android:versionName="2.0.0">
     <uses-sdk android:minSdkVersion="33" android:targetSdkVersion="36" />
-    <application android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:hasCode="true">
-        <meta-data android:name="xposedmodule" android:value="true" />
-        <meta-data android:name="xposeddescription"
-            android:value="Lets Moto's built-in app cloner (Settings &gt; Cloned apps) and launcher accept any launchable app." />
-        <meta-data android:name="xposedminversion" android:value="82" />
-        <meta-data android:name="xposedscope" android:resource="@array/xposed_scope" />
-    </application>
+    <!-- libxposed API module: metadata lives in META-INF/xposed/ (see resources/) -->
+    <application android:icon="@mipmap/ic_launcher" android:label="@string/app_name"
+        android:description="@string/app_description" android:hasCode="true" />
 </manifest>
